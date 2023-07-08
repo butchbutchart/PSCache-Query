@@ -19,6 +19,18 @@ $apiKey = Read-Host "Enter your API key:"
 $apiUser = Read-Host "Enter your API user:"
 Write-Host
 
+# Run ListAccounts command
+$listAccountsCommand = ".\psrun2 -i 127.0.0.1:8443 $apiKey $apiUser ListAccounts"
+$listAccountsResponse = Invoke-Expression $listAccountsCommand
+
+# Print specific fields from the response
+Write-Host "These breakglass accounts are available in the cache:"
+
+# Print specific fields from the response with aligned columns
+$listAccountsResponse | ConvertFrom-Csv -Delimiter "`t" | Format-Table -Property SystemName, AccountName, DomainName -AutoSize
+
+Write-Host
+
 # Get ManagedSystem
 $managedSystem = Read-Host "Enter the system from which you want to request an account:"
 Write-Host
