@@ -23,11 +23,17 @@ Write-Host
 $listAccountsCommand = ".\psrun2 -i 127.0.0.1:8443 $apiKey $apiUser ListAccounts"
 $listAccountsResponse = Invoke-Expression $listAccountsCommand
 
+# Run List Secrets command
+$listSecretsCommand = ".\psrun2 -i 127.0.0.1:8443 $apiKey $apiUser GET Secrets-Safe/Secrets"
+$listSecretsResponse = Invoke-Expression $listSecretsCommand
+
 # Print specific fields from the response
 Write-Host "These breakglass accounts are available in the cache:"
 
 # Print specific fields from the response with aligned columns
 $listAccountsResponse | ConvertFrom-Csv -Delimiter "`t" | Format-Table -Property SystemName, AccountName, DomainName -AutoSize
+
+$listSecretsResponse | ConvertFrom-Csv -Delimiter "`t" | Format-Table -Property Title, Description -AutoSize
 
 Write-Host
 
