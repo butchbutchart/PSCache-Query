@@ -90,7 +90,7 @@ Password: $response
 
 Write-Host
 
-# Get ManagedSystem
+# User submits secret ID
 $SecretID = Read-Host "Enter the ID from above of the secret you want to request:"
 Write-Host
 
@@ -99,25 +99,24 @@ Write-Host
 $commandsecret = ".\psrun2 -i 127.0.0.1:8443 $apiKey $apiUser GET Secrets-Safe/Secrets/$SecretID
 
 # Execute command and capture output
-$response = Invoke-Expression $commandsecret
+$secretresponse = Invoke-Expression $commandsecret
 
 # Print response with headings
 Write-Host 
-Write-Host "ManagedSystem: $managedSystem ManagedAccount: $managedAccount"
+Write-Host "Secret: $SecretID"
 Write-Host
-Write-Host -ForegroundColor Red "Password: $response"
+Write-Host -ForegroundColor Red "Password: $secretresponse"
 Write-Host
 
 # Store output as text file
-$storeOutput = Read-Host "Would you like to store the output as a text file? (yes/no)"
-if ($storeOutput.ToLower() -eq "yes") {
+$storeOutputSecret = Read-Host "Would you like to store the output as a text file? (yes/no)"
+if ($storeOutputSecret.ToLower() -eq "yes") {
     $date = Get-Date -Format "yyyyMMdd"
     $time = Get-Date -Format "HHmmss"
-    $outputPath = "$env:USERPROFILE\Desktop\breakglass-password$date$time.txt"
+    $outputPathSecret = "$env:USERPROFILE\Desktop\breakglass-password$date$time.txt"
     $outputContent = @"
-Managed System: $managedSystem
-Requested Account: $managedAccount
-Password: $response
+Secret ID: $SecretID
+Secret: $secretresponse
 "@
     $outputContent | Out-File -FilePath $outputPath -Encoding UTF8
 
