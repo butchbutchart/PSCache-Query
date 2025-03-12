@@ -1,128 +1,113 @@
-# ASCII art
-$asciiArt = @"
+#Set Working Directory to current script path
+#Split-Path -parent $MyInvocation.MyCommand.Definition | Set-Location
+#Force TLS 1.2
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
-__________                        __               ________.__                        
-\______   \_______   ____ _____  |  | __          /  _____/|  | _____    ______ ______
- |    |  _/\_  __ \_/ __ \\__  \ |  |/ /  ______ /   \  ___|  | \__  \  /  ___//  ___/
- |    |   \ |  | \/\  ___/ / __ \|    <  /_____/ \    \_\  \  |__/ __ \_\___ \ \___ \ 
- |______  / |__|    \___  >____  /__|_ \          \______  /____(____  /____  >____  >
-        \/              \/     \/     \/                 \/          \/     \/     \/ 
-                               
-"@
-
-Write-Host $asciiArt
-Write-Host "BREAK GLASS PROCEDURE"
-Write-Host
-
-# Get API key and user
-$apiKey = Read-Host "Enter your API key:"
-$apiUser = Read-Host "Enter your API user:"
-Write-Host
-
-# Run ListAccounts command
-$listAccountsCommand = ".\psrun2 -i 127.0.0.1:8443 $apiKey $apiUser ListAccounts"
-$listAccountsResponse = Invoke-Expression $listAccountsCommand
-
-# Run List Secrets command
-$listSecretsCommand = ".\psrun2 -i 127.0.0.1:8443 $apiKey $apiUser GET Secrets-Safe/Secrets"
-$listSecretsResponse = Invoke-Expression $listSecretsCommand
-
-# Print specific fields from the response
-Write-Host "These breakglass accounts are available in the cache:"
-
-# Print specific fields from the response with aligned columns
-$listAccountsResponse | ConvertFrom-Csv -Delimiter "`t" | Format-Table -Property SystemName, AccountName, DomainName -AutoSize
-
-$listSecretsResponse | ConvertFrom-Csv -Delimiter "`t" | Format-Table -Property Title, Description, Id -AutoSize
-
-### If the user wants to request an account or a secret ####
-
-# Print available options
-Write-Host "Do you want to request a managed account or a secret?"
-Write-Host "1. Managed Account"
-Write-Host "2. Secret"
-
-# Get user's choice
-$userChoice = Read-Host "Enter the number of your choice (1 or 2):"
-
-# Process user's choice
-if ($userChoice -eq "1") {
-    ### If the request is for a managed system ####
-
-    Write-Host
-
-    # Get ManagedSystem
-    $managedSystem = Read-Host "Enter the system from which you want to request an account:"
-    Write-Host
-
-    # Get ManagedAccount
-    $managedAccount = Read-Host "Enter the name of the account you would like to request:"
-    
-    # Construct command
-    $command = ".\psrun2 -i 127.0.0.1:8443 $apiKey $apiUser RetrievePassword $managedSystem $managedAccount 'Break-glass Request'"
-
-    # Execute command and capture output
-    $response = Invoke-Expression $command
-
-    # Print response with headings
-    Write-Host 
-    Write-Host "ManagedSystem: $managedSystem ManagedAccount: $managedAccount"
-    Write-Host
-    Write-Host -ForegroundColor Red "Password: $response"
-    Write-Host
-
-    # Store output as text file
-    $storeOutput = Read-Host "Would you like to store the output as a text file? (yes/no)"
-    if ($storeOutput.ToLower() -eq "yes") {
-        $date = Get-Date -Format "yyyyMMdd"
-        $time = Get-Date -Format "HHmmss"
-        $outputPath = "$env:USERPROFILE\Desktop\breakglass-password$date$time.txt"
-        $outputContent = @"
-Managed System: $managedSystem
-Requested Account: $managedAccount
-Password: $response
-"@
-        $outputContent | Out-File -FilePath $outputPath -Encoding UTF8
-
-        Write-Host "#######"
-        Write-Host "#######"
-        Write-Host "#######"
-        Write-Host "Output has been stored as a text file: $outputPath"
-        Write-Host "#######"
-        Write-Host "#######"
-        Write-Host "#######"
-        Write-Host "#######"
-        Write-Host -ForegroundColor Red "Remember to delete this file if the account is not being rotated"
-        Write-Host "#######"
-        Write-Host "#######"
-        Write-Host "#######"
+        #Specify URL
+        $baseUrl = "https://127.0.0.1:8443/BeyondTrust/api/public/v3/";
+        #$apiKey = "";
+        $apiKey = "key"; 
+        #Username of BI user associated to the API Key
+        $runAsUser = "user";
+        #Password for api user.
+        #$runAsPassword = "P@ssw0rd";
+	
+#Build the Authorization header
+#$headers = @{ Authorization="PS-Auth key=${apiKey}; runas=${runAsUser};pwd={runAsPassword}"; };
+$headers = @{ Authorization="PS-Auth key=${apiKey}; runas=${runAsUser}";};
+$ErrorActionPreference = 'SilentlyContinue'
+#Used to bypass any cert errors.
+#region Trust All Certificates
+#Uncomment the following block if you want to trust an unsecure connection when pointing to local Password Cache.
+#
+#The Invoke-RestMethod CmdLet does not currently have an option for ignoring SSL warnings (i.e self-signed CA certificates).
+#This policy is a temporary workaround to allow that for development purposes.
+#Warning: If using this policy, be absolutely sure the host is secure.
+add-type "
+using System.Net;
+using System.Security.Cryptography.X509Certificates;
+public class TrustAllCertsPolicy : ICertificatePolicy {
+    public bool CheckValidationResult(ServicePoint srvPoint, X509Certificate certificate, WebRequest request, int certificateProblem)
+    {
+        return true;
     }
-    
-} elseif ($userChoice -eq "2") {
-    ### If the request is for a secret ####
+}
+";
+[System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy;
 
-    Write-Host
+#endregion
 
-    # User submits secret ID
-    $SecretID = Read-Host "Enter the ID from above of the secret you want to request:"
-    Write-Host
+#Verbose logging?
+$verbose = $True;
 
-    # Construct command
-    $commandsecret = ".\psrun2 -i 127.0.0.1:8443 $apiKey $apiUser GET Secrets-Safe/Secrets/$SecretID"
-
-    # Execute command and capture output
-    $secretresponse = Invoke-Expression $commandsecret
-
-    # Print response with headings
-    Write-Host 
-    Write-Host "Secret: $SecretID"
-    Write-Host
-    $secretresponse | ConvertFrom-Csv -Delimiter "`t" | Format-Table -Property Title, Description, Password -AutoSize
-    Write-Host
-
-
+#Sign in API with error handling
+try
+{
+     #Sign-In
+     if ($verbose) { "Signing-in.."; }
+     $signInResult = Invoke-RestMethod -Uri "${baseUrl}Auth/SignAppIn" -Method POST -Headers $headers -SessionVariable session;   
+     if ($verbose) { "..Signed-in as {0}" -f $signInResult.UserName;  ""; }
+}
+catch
+{    "";"Exception:";
+    if ($verbose)
+    {$_.Exception
+        $_.Exception | Format-List -Force;
+    }
+    else
+    {
+        $_.Exception.GetType().FullName;
+        $_.Exception.Message;
+    }
 }
 
-# Pause before exiting
-Write-Host "Press Enter to exit..."
-$null = Read-Host
+# Retrieve list of secrets
+$secretsUri = "${baseUrl}Secrets-Safe/Secrets"
+try {
+    Write-Host "`n[DEBUG] Retrieving list of secrets..."
+    $secretsResponse = Invoke-RestMethod -Uri $secretsUri -Method GET -Headers $headers -WebSession $session
+    Write-Host "[DEBUG] Secrets retrieved successfully."
+} catch {
+    Write-Error "[ERROR] Failed to retrieve secrets: $($_.Exception.Message)"
+    exit 1
+}
+
+# Ensure secrets were retrieved successfully
+if (-not $secretsResponse) {
+    Write-Error "[ERROR] No secrets found or error occurred."
+    exit 1
+}
+
+# Display secrets in a selectable format
+Write-Host "`n[INFO] Available Secrets:"
+$secretsResponse | Format-Table -Property Title, Description, Id -AutoSize
+
+# Allow user to select a secret from a grid view
+$selectedSecret = $secretsResponse | Select-Object Title, Description, Id | Out-GridView -PassThru -Title "Select a Secret"
+
+# Validate selection
+if (-not $selectedSecret) {
+    Write-Error "[ERROR] No Secret selected. Exiting..."
+    exit 1
+}
+
+# Retrieve details of the selected secret
+$secretDetailUri = "${baseUrl}Secrets-Safe/Secrets/$($selectedSecret.Id)"
+Write-Host "`n[DEBUG] API Request URL: $secretDetailUri"
+
+try {
+    Write-Host "`n[DEBUG] Retrieving details for Secret ID: $($selectedSecret.Id)"
+    $secretDetailResponse = Invoke-RestMethod -Uri $secretDetailUri -Method GET -Headers $headers -WebSession $session
+    Write-Host "[DEBUG] Secret details retrieved successfully."
+} catch {
+    Write-Error ("[ERROR] Failed to retrieve details for Secret ID " + $selectedSecret.Id + ": " + $_.Exception.Message)
+    exit 1
+}
+
+# Display full secret details
+Write-Host "`n[INFO] Secret Details:"
+$secretDetailResponse | Format-List *
+
+# Debugging - Print full JSON response
+#Write-Host "`n[DEBUG] Secret Details Response (JSON):"
+#$secretDetailResponse | ConvertTo-Json -Depth 3 | Write-Host
